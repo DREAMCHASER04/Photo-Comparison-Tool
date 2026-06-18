@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Photo Compare Platform</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Photo Compare Platform</h1>
+          <p>Upload photos, insert each new photo into a ranked list, and export the ranking history.</p>
+        </div>
+        <button id="resetButton" class="button danger" type="button">Refresh Session</button>
+      </header>
+
+      <section class="upload-band" aria-label="Upload photos">
+        <label class="upload-box" for="photoInput">
+          <span>Upload photo series</span>
+          <strong>Select two or more images</strong>
+          <input id="photoInput" type="file" accept="image/*" multiple />
+        </label>
+        <div class="status-grid">
+          <div>
+            <span class="metric" id="photoCount">0</span>
+            <span class="metric-label">photos</span>
+          </div>
+          <div>
+            <span class="metric" id="comparisonCount">0</span>
+            <span class="metric-label">comparisons</span>
+          </div>
+          <div>
+            <span class="metric" id="remainingCount">0</span>
+            <span class="metric-label">remaining</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="compare-area" aria-label="Current comparison">
+        <article class="photo-panel">
+          <div class="photo-frame">
+            <img id="leftImage" alt="Left comparison photo" />
+            <span id="leftPlaceholder">Left photo</span>
+          </div>
+          <h2 id="leftName">No photo loaded</h2>
+        </article>
+
+        <div class="decision-panel">
+          <p id="pairLabel">Upload images to begin.</p>
+          <div class="decision-buttons">
+            <button id="leftButton" class="button primary" type="button">Left ranked photo is better</button>
+            <button id="tieButton" class="button neutral" type="button">Tie</button>
+            <button id="rightButton" class="button primary" type="button">New photo is better</button>
+          </div>
+        </div>
+
+        <article class="photo-panel">
+          <div class="photo-frame">
+            <img id="rightImage" alt="Right comparison photo" />
+            <span id="rightPlaceholder">Right photo</span>
+          </div>
+          <h2 id="rightName">No photo loaded</h2>
+        </article>
+      </section>
+
+      <section class="results-grid">
+        <div class="ranking-panel">
+          <div class="section-title">
+            <h2>Current Ranking</h2>
+          </div>
+          <ol id="rankingList" class="ranking-list"></ol>
+        </div>
+
+        <div class="history-panel">
+          <div class="section-title">
+            <h2>Stored History Data</h2>
+            <button id="copyButton" class="button secondary" type="button">Copy JSON</button>
+          </div>
+          <pre id="historyOutput">{}</pre>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./dist/main.js"></script>
+  </body>
+</html>

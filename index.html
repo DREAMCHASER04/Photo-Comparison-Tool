@@ -11,17 +11,36 @@
       <header class="topbar">
         <div>
           <h1>Photo Compare Platform</h1>
-          <p>Upload photos, insert each new photo into a ranked list, and export the ranking history.</p>
+          <p>Upload cropped image folders, choose an anonymous generated group, and rank photos without showing filenames.</p>
         </div>
         <button id="resetButton" class="button danger" type="button">Refresh Session</button>
       </header>
 
       <section class="upload-band" aria-label="Upload photos">
-        <label class="upload-box" for="photoInput">
-          <span>Upload photo series</span>
-          <strong>Select two or more images</strong>
-          <input id="photoInput" type="file" accept="image/*" multiple />
-        </label>
+        <div class="upload-controls">
+          <label class="upload-box" for="photoInput">
+            <span>Upload Google Drive synced folder or images</span>
+            <strong>Select folder containing cropped folders</strong>
+            <input id="photoInput" type="file" accept="image/*" multiple webkitdirectory />
+          </label>
+          <div class="category-grid" aria-label="Ranking group controls">
+            <label class="category-box" for="modeSelect">
+              <span>Grouping mode</span>
+              <select id="modeSelect"></select>
+            </label>
+            <label class="category-box" for="groupSelect">
+              <span>Anonymous group</span>
+              <select id="groupSelect"></select>
+            </label>
+          </div>
+          <section id="customPanel" class="custom-panel" aria-label="Custom test set">
+            <div class="section-title">
+              <h2>Custom Test Set</h2>
+              <button id="startCustomButton" class="button secondary" type="button">Start Set</button>
+            </div>
+            <div id="customPhotoGrid" class="custom-photo-grid"></div>
+          </section>
+        </div>
         <div class="status-grid">
           <div>
             <span class="metric" id="photoCount">0</span>
@@ -75,8 +94,8 @@
 
         <div class="history-panel">
           <div class="section-title">
-            <h2>Stored History Data</h2>
-            <button id="copyButton" class="button secondary" type="button">Copy JSON</button>
+            <h2>Export Summary</h2>
+            <button id="exportButton" class="button secondary" type="button">Download CSV</button>
           </div>
           <pre id="historyOutput">{}</pre>
         </div>

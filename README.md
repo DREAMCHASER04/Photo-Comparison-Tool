@@ -1,12 +1,16 @@
 # Photo Compare Platform
 
-A simple TypeScript web app for ranking a set of uploaded photos through human pairwise comparison.
+A simple TypeScript web app for ranking parsed photo groups through human pairwise comparison.
 
-The app is designed for cases where a human evaluator needs to decide which photo is more developed, better, or otherwise preferred. It keeps the workflow simple: upload photos, compare two at a time, and produce a final ordered ranking.
+The app is designed for phenology photo ranking where a human evaluator decides which photo is more developed. It keeps filenames hidden during comparison, but includes filenames in the exported CSV for analysis.
 
 ## Features
 
-- Upload two or more photos from the browser.
+- Upload a local folder, including Google Drive folders synced to the computer.
+- Parse images from `cropped` folders using names like `01A_03192026_cropped.jpg`.
+- Automatically create multiple grouping modes from wood folder, tree number, branch letter, and date.
+- Choose a grouping mode first, then choose one anonymous group within that mode.
+- Create a custom test set by selecting anonymous photo thumbnails.
 - Compare one ranked photo against one new photo at a time.
 - Choose one of three decisions:
   - Left ranked photo is better
@@ -14,9 +18,50 @@ The app is designed for cases where a human evaluator needs to decide which phot
   - Tie
 - Maintain a ranked list using binary insertion ranking.
 - Support tie groups, such as `A > B = C > D`.
-- Show stored comparison history as JSON.
-- Copy the JSON result for later analysis.
+- Hide filenames in the comparison and ranking interface.
+- Adjust the finished ranking manually by selecting a photo and inserting it before, after, or into a tie group.
+- Download the current ranking board as CSV only when the `Download CSV` button is clicked.
 - Refresh the session to clear current ranking data.
+
+## Expected Folder and Filename Format
+
+For folder upload, the app only ranks image files under a folder named `cropped`.
+
+Recommended structure:
+
+```text
+Wood Name/
+  cropped/
+    01A_03192026_cropped.jpg
+    01A_04022026_cropped.jpg
+    01B_03192026_cropped.jpg
+```
+
+Filename parsing:
+
+- `01` is the tree number.
+- `A` is the branch.
+- `03192026` is the date, parsed as `2026-03-19`.
+- `_cropped` marks the image as the cropped version.
+
+The app generates multiple grouping views, including:
+
+```text
+Same branch across dates
+Same day across branches
+Same day across trees
+Same tree across dates
+Same date all trees and branches
+All parsed photos together
+```
+
+The interface uses two levels:
+
+```text
+Grouping mode -> Anonymous group
+```
+
+The group dropdown shows anonymous group numbers, such as `Group 1 (4 photos)`, so specific wood/tree/branch/date values are not visible during ranking. The custom test set mode also uses only anonymous thumbnails such as `Uploaded Photo 1`. Parsed details are included only in the CSV export.
 
 ## Ranking Logic
 
@@ -31,6 +76,7 @@ After upload:
 5. The app compares the new photo against the middle of the current search range.
 6. Based on the human decision, the app narrows the search range until the correct position is found.
 7. If the user chooses tie, the new photo is placed into the same rank group.
+8. After the final insertion, the evaluator can adjust the ranking board and download CSV manually.
 
 Example final ranking:
 
@@ -38,7 +84,7 @@ Example final ranking:
 A > B = C > D
 ```
 
-This avoids comparing every photo with every other photo, which makes the workflow faster for larger photo sets.
+This avoids comparing every photo with every other photo, which makes the workflow faster for larger photo sets. After automatic ranking, the evaluator can still select a thumbnail in the ranking list and place it before, after, or tied with another ranked group.
 
 ## Run Locally
 

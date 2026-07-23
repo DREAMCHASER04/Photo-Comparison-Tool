@@ -355,14 +355,14 @@ h1 {
 
 .rank-photo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+  gap: 14px;
 }
 
 .rank-photo {
   display: grid;
   gap: 8px;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid #dce2e6;
   border-radius: 8px;
   background: #f8fafb;

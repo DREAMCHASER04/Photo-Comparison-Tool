@@ -1,8 +1,9 @@
 "use strict";
-const STORAGE_KEY = "photo-compare-platform-state";
+const STORAGE_KEY = "photo-compare-platform-state-v2";
 const CUSTOM_MODE_ID = "custom";
 const emptyState = () => ({
     uploadedPhotos: [],
+    anonymousPhotoOrder: [],
     categories: [],
     selectedModeId: "",
     selectedCategoryKey: "",
@@ -101,6 +102,7 @@ function bindEvents() {
         state = {
             ...emptyState(),
             uploadedPhotos,
+            anonymousPhotoOrder: randomizePhotoOrder(uploadedPhotos).map((photo) => photo.id),
             categories,
             selectedModeId,
             selectedCategoryKey,
@@ -195,9 +197,8 @@ function startSelectedCategorySession() {
         ? category.photoIds
             .map((photoId) => state.uploadedPhotos.find((photo) => photo.id === photoId))
             .filter((photo) => Boolean(photo))
-            .sort(comparePhotosByDate)
         : [];
-    const nextState = startRankingSession(photos);
+    const nextState = startRankingSession(randomizePhotoOrder(photos));
     state = {
         ...state,
         photos: nextState.photos,
@@ -212,9 +213,8 @@ function startSelectedCategorySession() {
 function startCustomSession() {
     const photos = state.customPhotoIds
         .map((photoId) => state.uploadedPhotos.find((photo) => photo.id === photoId))
-        .filter((photo) => Boolean(photo))
-        .sort(comparePhotosByDate);
-    const nextState = startRankingSession(photos);
+        .filter((photo) => Boolean(photo));
+    const nextState = startRankingSession(randomizePhotoOrder(photos));
     state = {
         ...state,
         selectedModeId: CUSTOM_MODE_ID,
@@ -375,8 +375,8 @@ function recordDecision(result) {
         finishCurrentInsertion();
     }
     else {
-        const nextLow = result === "left" ? search.mid + 1 : search.low;
-        const nextHigh = result === "right" ? search.mid : search.high;
+        const nextLow = result === "right" ? search.mid + 1 : search.low;
+        const nextHigh = result === "left" ? search.mid : search.high;
         if (nextLow >= nextHigh) {
             state.rankingGroups.splice(nextLow, 0, { id: createId(), photoIds: [newPhoto.id] });
             finishCurrentInsertion();
@@ -534,7 +534,7 @@ function renderCustomPanel() {
     elements.startCustomButton.disabled = state.customPhotoIds.length === 0;
     if (state.selectedModeId !== CUSTOM_MODE_ID)
         return;
-    state.uploadedPhotos.forEach((photo) => {
+    getUploadedPhotosInAnonymousOrder().forEach((photo) => {
         const button = document.createElement("button");
         const image = document.createElement("img");
         const label = document.createElement("span");
@@ -580,7 +580,7 @@ function renderRanking() {
         const photoGrid = document.createElement("div");
         header.className = "rank-header";
         photoGrid.className = "rank-photo-grid";
-        title.textContent = `Rank ${index + 1}`;
+        title.textContent = `Rank ${index + 1}${index === 0 ? " - least developed" : ""}`;
         meta.textContent = group.photoIds.length > 1 ? "tie group" : "single photo";
         header.append(title, meta);
         group.photoIds.forEach((photoId) => {
@@ -607,7 +607,7 @@ function renderRanking() {
         if (state.selectedPhotoId) {
             const controls = document.createElement("div");
             controls.className = "insert-controls";
-            controls.append(createMoveButton("before", group.id, "Before"), createMoveButton("tie", group.id, "Tie here"), createMoveButton("after", group.id, "After"));
+            controls.append(createMoveButton("before", group.id, "less developed than this"), createMoveButton("tie", group.id, "Tie here"), createMoveButton("after", group.id, "more developed than this"));
             item.append(controls);
         }
         elements.rankingList.append(item);
@@ -732,12 +732,21 @@ function getAnonymousGroupLabel(category) {
     return category.label.replace(`${category.modeLabel} - `, "");
 }
 function getAnonymousPhotoLabel(photo) {
-    const index = state.photos.findIndex((item) => item.id === photo.id);
+    const index = state.anonymousPhotoOrder.findIndex((photoId) => photoId === photo.id);
     return index >= 0 ? `Photo ${index + 1}` : "Photo";
 }
 function getUploadedPhotoLabel(photo) {
-    const index = state.uploadedPhotos.findIndex((item) => item.id === photo.id);
-    return index >= 0 ? `Uploaded Photo ${index + 1}` : "Uploaded Photo";
+    return getAnonymousPhotoLabel(photo);
+}
+function getUploadedPhotosInAnonymousOrder() {
+    const orderedPhotos = state.anonymousPhotoOrder
+        .map((photoId) => state.uploadedPhotos.find((photo) => photo.id === photoId))
+        .filter((photo) => Boolean(photo));
+    const orderedIds = new Set(orderedPhotos.map((photo) => photo.id));
+    return [
+        ...orderedPhotos,
+        ...state.uploadedPhotos.filter((photo) => !orderedIds.has(photo.id)),
+    ];
 }
 function getFilePath(file) {
     return file.webkitRelativePath || file.name;
@@ -745,9 +754,13 @@ function getFilePath(file) {
 function getPathParts(file) {
     return getFilePath(file).split("/").filter(Boolean);
 }
-function comparePhotosByDate(a, b) {
-    return (a.metadata.dateIso.localeCompare(b.metadata.dateIso) ||
-        a.name.localeCompare(b.name, undefined, { numeric: true }));
+function randomizePhotoOrder(items) {
+    const shuffled = [...items];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    return shuffled;
 }
 function formatDate(dateRaw) {
     const month = dateRaw.slice(0, 2);
@@ -788,6 +801,7 @@ function loadState() {
                 : []).map(normalizeLoadedPhoto);
         return {
             uploadedPhotos,
+            anonymousPhotoOrder: Array.isArray(parsed.anonymousPhotoOrder) ? parsed.anonymousPhotoOrder : [],
             categories: buildCategories(uploadedPhotos),
             selectedModeId: typeof parsed.selectedModeId === "string" ? parsed.selectedModeId : "",
             selectedCategoryKey: typeof parsed.selectedCategoryKey === "string" ? parsed.selectedCategoryKey : "",
@@ -830,6 +844,7 @@ function normalizeState() {
         return;
     }
     state.categories = state.categories.length > 0 ? state.categories : buildCategories(state.uploadedPhotos);
+    normalizeAnonymousPhotoOrder();
     const availableModes = getAvailableModeOptions();
     if (!availableModes.some((mode) => mode.id === state.selectedModeId)) {
         state.selectedModeId = availableModes[0]?.id || "";
@@ -850,6 +865,18 @@ function normalizeState() {
     if (state.photos.length === 0 && state.selectedCategoryKey) {
         startSelectedCategorySession();
     }
+}
+function normalizeAnonymousPhotoOrder() {
+    const uploadedIds = new Set(state.uploadedPhotos.map((photo) => photo.id));
+    const savedOrder = state.anonymousPhotoOrder.filter((photoId) => uploadedIds.has(photoId));
+    const savedIds = new Set(savedOrder);
+    const missingIds = state.uploadedPhotos
+        .filter((photo) => !savedIds.has(photo.id))
+        .map((photo) => photo.id);
+    state.anonymousPhotoOrder = [
+        ...savedOrder,
+        ...randomizePhotoOrder(missingIds),
+    ];
 }
 function createId() {
     return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;

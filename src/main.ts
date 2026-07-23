@@ -281,9 +281,10 @@ function selectSupportedFiles(files: File[]): File[] {
   const hasDirectoryPaths = imageFiles.some((file) => getFilePath(file).includes("/"));
   if (!hasDirectoryPaths) return imageFiles;
 
-  return imageFiles.filter((file) =>
+  const croppedFolderImages = imageFiles.filter((file) =>
     getPathParts(file).some((part) => part.toLowerCase() === "cropped"),
   );
+  return croppedFolderImages.length > 0 ? croppedFolderImages : imageFiles;
 }
 
 function getCategoriesForSelectedMode(): ParsedCategory[] {

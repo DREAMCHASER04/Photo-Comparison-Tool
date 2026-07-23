@@ -184,7 +184,8 @@ function selectSupportedFiles(files) {
     const hasDirectoryPaths = imageFiles.some((file) => getFilePath(file).includes("/"));
     if (!hasDirectoryPaths)
         return imageFiles;
-    return imageFiles.filter((file) => getPathParts(file).some((part) => part.toLowerCase() === "cropped"));
+    const croppedFolderImages = imageFiles.filter((file) => getPathParts(file).some((part) => part.toLowerCase() === "cropped"));
+    return croppedFolderImages.length > 0 ? croppedFolderImages : imageFiles;
 }
 function getCategoriesForSelectedMode() {
     return state.categories.filter((category) => category.modeId === state.selectedModeId);

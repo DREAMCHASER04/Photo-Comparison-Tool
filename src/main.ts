@@ -503,8 +503,8 @@ function recordDecision(result: ComparisonResult): void {
     state.rankingGroups[search.mid].photoIds.push(newPhoto.id);
     finishCurrentInsertion();
   } else {
-    const nextLow = result === "right" ? search.mid + 1 : search.low;
-    const nextHigh = result === "left" ? search.mid : search.high;
+    const nextLow = result === "left" ? search.mid + 1 : search.low;
+    const nextHigh = result === "right" ? search.mid : search.high;
 
     if (nextLow >= nextHigh) {
       state.rankingGroups.splice(nextLow, 0, { id: createId(), photoIds: [newPhoto.id] });
@@ -730,7 +730,7 @@ function renderRanking(): void {
 
     header.className = "rank-header";
     photoGrid.className = "rank-photo-grid";
-    title.textContent = `Rank ${index + 1}${index === 0 ? " - least developed" : ""}`;
+    title.textContent = `Rank ${index + 1}${index === 0 ? " - most developed" : ""}`;
     meta.textContent = group.photoIds.length > 1 ? "tie group" : "single photo";
     header.append(title, meta);
 
@@ -763,9 +763,9 @@ function renderRanking(): void {
       const controls = document.createElement("div");
       controls.className = "insert-controls";
       controls.append(
-        createMoveButton("before", group.id, "less developed than this"),
+        createMoveButton("before", group.id, "more developed than this"),
         createMoveButton("tie", group.id, "Tie here"),
-        createMoveButton("after", group.id, "more developed than this"),
+        createMoveButton("after", group.id, "less developed than this"),
       );
       item.append(controls);
     }

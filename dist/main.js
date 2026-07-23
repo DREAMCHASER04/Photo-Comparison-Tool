@@ -4,6 +4,7 @@ const CUSTOM_MODE_ID = "custom";
 const emptyState = () => ({
     uploadedPhotos: [],
     anonymousPhotoOrder: [],
+    anonymousPhotoAliases: {},
     categories: [],
     selectedModeId: "",
     selectedCategoryKey: "",
@@ -103,6 +104,7 @@ function bindEvents() {
             ...emptyState(),
             uploadedPhotos,
             anonymousPhotoOrder: randomizePhotoOrder(uploadedPhotos).map((photo) => photo.id),
+            anonymousPhotoAliases: createAnonymousPhotoAliases(uploadedPhotos),
             categories,
             selectedModeId,
             selectedCategoryKey,
@@ -375,8 +377,8 @@ function recordDecision(result) {
         finishCurrentInsertion();
     }
     else {
-        const nextLow = result === "left" ? search.mid + 1 : search.low;
-        const nextHigh = result === "right" ? search.mid : search.high;
+        const nextLow = result === "right" ? search.mid + 1 : search.low;
+        const nextHigh = result === "left" ? search.mid : search.high;
         if (nextLow >= nextHigh) {
             state.rankingGroups.splice(nextLow, 0, { id: createId(), photoIds: [newPhoto.id] });
             finishCurrentInsertion();
@@ -562,7 +564,7 @@ function renderPhoto(side, photo) {
     image.src = photo.dataUrl;
     image.style.display = "block";
     placeholder.style.display = "none";
-    name.textContent = side === "left" ? "Ranked photo" : "New photo";
+    name.textContent = `${side === "left" ? "Ranked photo" : "New photo"} - ${getAnonymousPhotoLabel(photo)}`;
 }
 function renderRanking() {
     elements.rankingList.replaceChildren();
@@ -580,10 +582,10 @@ function renderRanking() {
         const photoGrid = document.createElement("div");
         header.className = "rank-header";
         photoGrid.className = "rank-photo-grid";
-        title.textContent = `Rank ${index + 1}${index === 0 ? " - most developed" : ""}`;
+        title.textContent = `Rank ${index + 1}${index === 0 ? " - least developed" : ""}`;
         meta.textContent = group.photoIds.length > 1 ? "tie group" : "single photo";
         header.append(title, meta);
-        group.photoIds.forEach((photoId) => {
+        getPhotoIdsInAnonymousOrder(group.photoIds).forEach((photoId) => {
             const photo = findPhoto(photoId);
             if (!photo)
                 return;
@@ -607,7 +609,7 @@ function renderRanking() {
         if (state.selectedPhotoId) {
             const controls = document.createElement("div");
             controls.className = "insert-controls";
-            controls.append(createMoveButton("before", group.id, "more developed than this"), createMoveButton("tie", group.id, "Tie here"), createMoveButton("after", group.id, "less developed than this"));
+            controls.append(createMoveButton("before", group.id, "less developed than this"), createMoveButton("tie", group.id, "Tie here"), createMoveButton("after", group.id, "more developed than this"));
             item.append(controls);
         }
         elements.rankingList.append(item);
@@ -732,8 +734,7 @@ function getAnonymousGroupLabel(category) {
     return category.label.replace(`${category.modeLabel} - `, "");
 }
 function getAnonymousPhotoLabel(photo) {
-    const index = state.anonymousPhotoOrder.findIndex((photoId) => photoId === photo.id);
-    return index >= 0 ? `Photo ${index + 1}` : "Photo";
+    return state.anonymousPhotoAliases[photo.id] ?? "Photo";
 }
 function getUploadedPhotoLabel(photo) {
     return getAnonymousPhotoLabel(photo);
@@ -746,6 +747,15 @@ function getUploadedPhotosInAnonymousOrder() {
     return [
         ...orderedPhotos,
         ...state.uploadedPhotos.filter((photo) => !orderedIds.has(photo.id)),
+    ];
+}
+function getPhotoIdsInAnonymousOrder(photoIds) {
+    const availableIds = new Set(photoIds);
+    const orderedIds = state.anonymousPhotoOrder.filter((photoId) => availableIds.has(photoId));
+    const orderedIdSet = new Set(orderedIds);
+    return [
+        ...orderedIds,
+        ...photoIds.filter((photoId) => !orderedIdSet.has(photoId)),
     ];
 }
 function getFilePath(file) {
@@ -802,6 +812,7 @@ function loadState() {
         return {
             uploadedPhotos,
             anonymousPhotoOrder: Array.isArray(parsed.anonymousPhotoOrder) ? parsed.anonymousPhotoOrder : [],
+            anonymousPhotoAliases: isAliasMap(parsed.anonymousPhotoAliases) ? parsed.anonymousPhotoAliases : {},
             categories: buildCategories(uploadedPhotos),
             selectedModeId: typeof parsed.selectedModeId === "string" ? parsed.selectedModeId : "",
             selectedCategoryKey: typeof parsed.selectedCategoryKey === "string" ? parsed.selectedCategoryKey : "",
@@ -845,6 +856,7 @@ function normalizeState() {
     }
     state.categories = state.categories.length > 0 ? state.categories : buildCategories(state.uploadedPhotos);
     normalizeAnonymousPhotoOrder();
+    normalizeAnonymousPhotoAliases();
     const availableModes = getAvailableModeOptions();
     if (!availableModes.some((mode) => mode.id === state.selectedModeId)) {
         state.selectedModeId = availableModes[0]?.id || "";
@@ -877,6 +889,116 @@ function normalizeAnonymousPhotoOrder() {
         ...savedOrder,
         ...randomizePhotoOrder(missingIds),
     ];
+}
+function normalizeAnonymousPhotoAliases() {
+    const uploadedIds = new Set(state.uploadedPhotos.map((photo) => photo.id));
+    const usedAliases = new Set();
+    const normalizedAliases = {};
+    state.uploadedPhotos.forEach((photo) => {
+        const savedAlias = state.anonymousPhotoAliases[photo.id];
+        if (savedAlias && uploadedIds.has(photo.id) && !usedAliases.has(savedAlias)) {
+            normalizedAliases[photo.id] = savedAlias;
+            usedAliases.add(savedAlias);
+        }
+    });
+    state.uploadedPhotos.forEach((photo) => {
+        if (normalizedAliases[photo.id])
+            return;
+        const alias = createUnusedAlias(usedAliases);
+        normalizedAliases[photo.id] = alias;
+        usedAliases.add(alias);
+    });
+    state.anonymousPhotoAliases = normalizedAliases;
+}
+function createAnonymousPhotoAliases(photos) {
+    const usedAliases = new Set();
+    return Object.fromEntries(photos.map((photo) => {
+        const alias = createUnusedAlias(usedAliases);
+        usedAliases.add(alias);
+        return [photo.id, alias];
+    }));
+}
+function createUnusedAlias(usedAliases) {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+        const alias = createRandomAlias();
+        if (!usedAliases.has(alias))
+            return alias;
+    }
+    let suffix = "a";
+    while (usedAliases.has(`alias ${suffix}`)) {
+        suffix = incrementLetters(suffix);
+    }
+    return `alias ${suffix}`;
+}
+function createRandomAlias() {
+    const adjectives = [
+        "amber",
+        "brisk",
+        "calm",
+        "clear",
+        "coral",
+        "crisp",
+        "dawn",
+        "deep",
+        "drift",
+        "frost",
+        "glade",
+        "harbor",
+        "ivory",
+        "jade",
+        "lunar",
+        "maple",
+        "meadow",
+        "mist",
+        "nova",
+        "opal",
+        "pearl",
+        "quiet",
+        "river",
+        "silver",
+        "summit",
+        "tidal",
+        "willow",
+    ];
+    const nouns = [
+        "arc",
+        "bloom",
+        "brook",
+        "cloud",
+        "field",
+        "flare",
+        "grove",
+        "haven",
+        "leaf",
+        "light",
+        "moss",
+        "path",
+        "ridge",
+        "shade",
+        "shore",
+        "sprig",
+        "stone",
+        "trail",
+        "vale",
+        "wave",
+    ];
+    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    return `${adjective} ${noun}`;
+}
+function isAliasMap(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+function incrementLetters(value) {
+    const letters = value.split("");
+    for (let index = letters.length - 1; index >= 0; index -= 1) {
+        if (letters[index] !== "z") {
+            letters[index] = String.fromCharCode(letters[index].charCodeAt(0) + 1);
+            return letters.join("");
+        }
+        letters[index] = "a";
+    }
+    return `a${letters.join("")}`;
 }
 function createId() {
     return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
